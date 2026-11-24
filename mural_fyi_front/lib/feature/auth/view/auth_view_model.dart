@@ -1,38 +1,44 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/api/api_client.dart';
+import '../../../core/api/auth_session.dart';
 import '../repository/auth_repository.dart';
 
-
 class AuthViewModel extends ChangeNotifier {
-  AuthViewModel(this._repository, this._apiClient);
+  AuthViewModel(this._repository, this._session) {
+    _session.addListener(notifyListeners);
+  }
 
   final AuthRepository _repository;
-  final ApiClient _apiClient;
+  final AuthSession _session;
 
   bool isLoading = false;
   String? errorMessage;
-  DateTime? _expiresAt;
-  String? _accessToken;
 
-  bool get isAuthenticated =>
-      _accessToken != null &&
-          _expiresAt != null &&
-          DateTime.now().isBefore(_expiresAt!);
+  bool get isAuthenticated => _session.isAuthenticated;
 
-  Future<bool> login(String username, String password) async {
+  Future<bool> login(
+    String username,
+    String password,
+  ) async {
+    if (isLoading) return false;
+
     isLoading = true;
     errorMessage = null;
+
     notifyListeners();
 
     try {
-      final response = await _repository.login(username, password);
-      _accessToken = response.accessToken;
-      _expiresAt = DateTime.now().add(
+      final response = await _repository.login(
+        username,
+        password,
+      );
+
+      _session.start(
+        response.accessToken,
         Duration(minutes: response.expiresInMinutes),
       );
-      _apiClient.setToken(response.accessToken);
-      return true;
+
+      return isAuthenticated;
     } catch (error) {
       errorMessage = error.toString();
       return false;
@@ -43,10 +49,13 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   void logout() {
-    _accessToken = null;
-    _expiresAt = null;
     errorMessage = null;
-    _apiClient.clearToken();
-    notifyListeners();
+    _session.clear();
+  }
+
+  @override
+  void dispose() {
+    _session.removeListener(notifyListeners);
+    super.dispose();
   }
 }

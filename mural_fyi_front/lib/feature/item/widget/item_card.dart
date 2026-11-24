@@ -1,23 +1,45 @@
 import 'package:flutter/material.dart';
+
 import '../model/item_model.dart';
 import '../model/item_status.dart';
 
 class ItemCard extends StatelessWidget {
-  const ItemCard({required this.item, super.key});
+  const ItemCard({
+    required this.item,
+    this.onEdit,
+    this.onDelete,
+    this.onRedeem,
+    this.isBusy = false,
+    super.key,
+  });
 
   final ItemModel item;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final VoidCallback? onRedeem;
+  final bool isBusy;
+
+  bool get _canManage =>
+      onEdit != null ||
+      onDelete != null ||
+      onRedeem != null;
 
   String get _formattedDate =>
       '${item.timeFound.day.toString().padLeft(2, '0')}/'
-          '${item.timeFound.month.toString().padLeft(2, '0')}/'
-          '${item.timeFound.year}';
+      '${item.timeFound.month.toString().padLeft(2, '0')}/'
+      '${item.timeFound.year}';
 
   Widget _itemPhoto({double height = 145}) {
     if (item.imgUrl == null || item.imgUrl!.trim().isEmpty) {
       return Container(
         height: height,
         color: Colors.grey.shade200,
-        child: const Center(child: Icon(Icons.image_not_supported_outlined, size: 50)),
+        child: const Center(
+          child: Icon(
+            Icons.image_not_supported_outlined,
+            size: 50,
+          ),
+        ),
       );
     }
 
@@ -29,7 +51,12 @@ class ItemCard extends StatelessWidget {
       errorBuilder: (context, error, stackTrace) => Container(
         height: height,
         color: Colors.grey.shade200,
-        child: const Center(child: Icon(Icons.broken_image_outlined, size: 50)),
+        child: const Center(
+          child: Icon(
+            Icons.broken_image_outlined,
+            size: 50,
+          ),
+        ),
       ),
     );
   }
@@ -81,25 +108,92 @@ class ItemCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _itemPhoto(),
+            Stack(
+              children: [
+                _itemPhoto(),
+                if (_canManage)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Material(
+                      color: Theme.of(context).colorScheme.surface,
+                      shape: const CircleBorder(),
+                      child: isBusy
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            )
+                          : PopupMenuButton<String>(
+                              tooltip: 'Gerenciar objeto',
+                              onSelected: (action) {
+                                switch (action) {
+                                  case 'edit':
+                                    onEdit?.call();
+                                    break;
+
+                                  case 'redeem':
+                                    onRedeem?.call();
+                                    break;
+
+                                  case 'delete':
+                                    onDelete?.call();
+                                    break;
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                if (onEdit != null)
+                                  const PopupMenuItem(
+                                    value: 'edit',
+                                    child: Text('Editar'),
+                                  ),
+                                if (onRedeem != null &&
+                                    item.status == ItemStatus.unclaimed)
+                                  const PopupMenuItem(
+                                    value: 'redeem',
+                                    child: Text('Marcar como recuperado'),
+                                  ),
+                                if (onDelete != null)
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Text('Excluir'),
+                                  ),
+                              ],
+                            ),
+                    ),
+                  ),
+              ],
+            ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      item.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 6),
-                    Text(item.description,
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(
+                      item.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const Spacer(),
-                    Text(item.localFound,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      item.localFound,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                     const SizedBox(height: 6),
                     Chip(
                       visualDensity: VisualDensity.compact,

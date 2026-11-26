@@ -8,7 +8,6 @@ class ItemCreateRequest {
     required this.localFound,
     required this.timeFound,
     required this.redeemLocal,
-    this.imgUrl,
   });
 
   final String name;
@@ -17,7 +16,6 @@ class ItemCreateRequest {
   final String localFound;
   final DateTime timeFound;
   final String redeemLocal;
-  final String? imgUrl;
 
   Map<String, dynamic> toJson() => {
     'name': name,
@@ -26,6 +24,5 @@ class ItemCreateRequest {
     'localFound': localFound,
     'timeFound': timeFound.toIso8601String().split('T').first,
     'redeemLocal': redeemLocal,
-    'imgUrl': imgUrl,
   };
 }

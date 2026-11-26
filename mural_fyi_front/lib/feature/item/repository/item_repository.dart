@@ -1,16 +1,33 @@
+import 'dart:typed_data';
+
 import '../../../core/api/api_client.dart';
 
+import '../model/item_category.dart';
 import '../model/item_create_request.dart';
+import '../model/item_update_request.dart';
 import '../model/item_model.dart';
+import '../model/item_page.dart';
 
 abstract interface class ItemRepository {
-  Future<List<ItemModel>> findAll();
+  Future<ItemPage> search({
+    String search = '',
+    String location = '',
+    ItemCategory? category,
+    int page = 0,
+  });
 
-  Future<List<ItemModel>> findByName(String name);
+  Future<Uint8List> findPhoto(int id);
 
-  Future<ItemModel> create(ItemCreateRequest request);
+  Future<ItemModel> create(
+      ItemCreateRequest request, {
+        Uint8List? photo,
+      });
 
-  Future<void> update(int id, ItemCreateRequest request);
+  Future<void> update(
+      int id,
+      ItemUpdateRequest request, {
+        Uint8List? photo,
+      });
 
   Future<void> markAsRedeemed(int id);
 
@@ -22,51 +39,63 @@ class HttpItemRepository implements ItemRepository {
 
   final ApiClient _apiClient;
 
-  List<ItemModel> _parseItems(dynamic data) =>
-      (data as List<dynamic>)
-          .map(
-            (entry) => ItemModel.fromJson(
-              entry as Map<String, dynamic>,
-            ),
-          )
-          .toList();
-
   @override
-  Future<List<ItemModel>> findAll() async {
-    return _parseItems(await _apiClient.get('/items'));
-  }
+  Future<ItemPage> search({
+    String search = '',
+    String location = '',
+    ItemCategory? category,
+    int page = 0,
+  }) async {
+    final result = await _apiClient.get(
+      '/items',
+      queryParameters: {
+        'search': search,
+        'location': location,
+        'page': '$page',
+        'size': '20',
+        if (category != null)
+          'category': category.apiValue,
+      },
+    );
 
-  @override
-  Future<List<ItemModel>> findByName(String name) async {
-    return _parseItems(
-      await _apiClient.get(
-        '/items',
-        queryParameters: {'name': name},
-      ),
+    return ItemPage.fromJson(
+      result as Map<String, dynamic>,
     );
   }
 
   @override
-  Future<ItemModel> create(ItemCreateRequest request) async {
-    final data = await _apiClient.post(
+  Future<Uint8List> findPhoto(int id) =>
+      _apiClient.getBytes('/items/$id/photo');
+
+  @override
+  Future<ItemModel> create(
+      ItemCreateRequest request, {
+        Uint8List? photo,
+      }) async {
+    final result = await _apiClient.multipart(
+      'POST',
       '/items',
       request.toJson(),
+      photo: photo,
     );
 
     return ItemModel.fromJson(
-      data as Map<String, dynamic>,
+      result as Map<String, dynamic>,
     );
   }
 
   @override
   Future<void> update(
-    int id,
-    ItemCreateRequest request,
-  ) async {
-    await _apiClient.patch('/items/$id', {
-      ...request.toJson(),
-      'imgUrl': request.imgUrl ?? '',
-    });
+      int id,
+      ItemUpdateRequest request, {
+        Uint8List? photo,
+      }) async {
+    await _apiClient.multipart(
+      'PATCH',
+      '/items/$id',
+      request.toJson(),
+      photo: photo,
+    );
   }
 
   @override

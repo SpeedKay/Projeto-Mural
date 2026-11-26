@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:http_parser/http_parser.dart';
 import 'package:http/http.dart' as http;
 
 import 'api_exception.dart';
@@ -21,15 +24,15 @@ class ApiClient {
   final AuthSession _session;
 
   Uri buildUri(
-    String path, {
-    Map<String, String>? queryParameters,
-  }) {
+      String path, {
+        Map<String, String>? queryParameters,
+      }) {
     final root = baseUrl.endsWith('/')
         ? baseUrl.substring(0, baseUrl.length - 1)
         : baseUrl;
 
     final normalizedPath =
-        path.startsWith('/') ? path : '/$path';
+    path.startsWith('/') ? path : '/$path';
 
     return Uri.parse('$root$normalizedPath').replace(
       queryParameters: queryParameters,
@@ -37,9 +40,9 @@ class ApiClient {
   }
 
   Future<dynamic> get(
-    String path, {
-    Map<String, String>? queryParameters,
-  }) =>
+      String path, {
+        Map<String, String>? queryParameters,
+      }) =>
       _request(
         'GET',
         path,
@@ -47,29 +50,26 @@ class ApiClient {
       );
 
   Future<dynamic> post(
-    String path,
-    Map<String, dynamic> body,
-  ) =>
+      String path,
+      Map<String, dynamic> body,
+      ) =>
       _request('POST', path, body: body);
 
   Future<dynamic> patch(
-    String path, [
-    Map<String, dynamic>? body,
-  ]) =>
+      String path, [
+        Map<String, dynamic>? body,
+      ]) =>
       _request('PATCH', path, body: body);
 
   Future<dynamic> delete(String path) =>
       _request('DELETE', path);
 
   Future<dynamic> _request(
-    String method,
-    String path, {
-    Map<String, String>? queryParameters,
-    Map<String, dynamic>? body,
-  }) async {
-    final token =
-        path == '/auth/login' ? null : _session.token;
-
+      String method,
+      String path, {
+        Map<String, String>? queryParameters,
+        Map<String, dynamic>? body,
+      }) async {
     final request = http.Request(
       method,
       buildUri(path, queryParameters: queryParameters),
@@ -77,13 +77,82 @@ class ApiClient {
 
     request.headers['Accept'] = 'application/json';
 
-    if (token != null) {
-      request.headers['Authorization'] = 'Bearer $token';
-    }
-
     if (body != null) {
       request.headers['Content-Type'] = 'application/json';
       request.body = jsonEncode(body);
+    }
+
+    return _send(request);
+  }
+
+  Future<dynamic> multipart(
+      String method,
+      String path,
+      Map<String, dynamic> data, {
+        Uint8List? photo,
+      }) {
+    final request = http.MultipartRequest(
+      method,
+      buildUri(path),
+    );
+
+    request.headers['Accept'] =
+    'application/json, application/problem+json';
+
+    request.files.add(
+      http.MultipartFile.fromString(
+        'item',
+        jsonEncode(data),
+        contentType: MediaType('application', 'json'),
+      ),
+    );
+
+    if (photo != null) {
+      final png = photo.isNotEmpty && photo.first == 137;
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'photo',
+          photo,
+          filename: png ? 'photo.png' : 'photo.jpg',
+          contentType: MediaType(
+            'image',
+            png ? 'png' : 'jpeg',
+          ),
+        ),
+      );
+    }
+
+    return _send(request);
+  }
+
+  Future<Uint8List> getBytes(String path) async {
+    final request = http.Request(
+      'GET',
+      buildUri(path),
+    );
+
+    request.headers['Accept'] =
+    'image/png, image/jpeg, application/problem+json';
+
+    final result = await _send(
+      request,
+      binary: true,
+    );
+
+    return result as Uint8List;
+  }
+
+  Future<dynamic> _send(
+      http.BaseRequest request, {
+        bool binary = false,
+      }) async {
+    final token = request.url.path == '/auth/login'
+        ? null
+        : _session.token;
+
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
     }
 
     try {
@@ -96,6 +165,12 @@ class ApiClient {
           token != null &&
           _session.token == token) {
         _session.clear();
+      }
+
+      if (binary &&
+          response.statusCode >= 200 &&
+          response.statusCode < 300) {
+        return response.bodyBytes;
       }
 
       return _decodeResponse(response);

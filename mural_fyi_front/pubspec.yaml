@@ -1,6 +1,6 @@
 name: mural_fyi_front
-description: Frontend Flutter Web para a API de achados e perdidos Mural FYI.
-publish_to: none
+description: Frontend Flutter para a API de achados e perdidos Mural FYI.
+publish_to: 'none'
 version: 1.0.0+1
 
 environment:
@@ -9,11 +9,16 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
   http: ^1.6.0
+  http_parser: ^4.1.2
+  file_picker: ^8.3.7
+  image: ^4.10.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
   flutter_lints: ^6.0.0
 
 flutter:

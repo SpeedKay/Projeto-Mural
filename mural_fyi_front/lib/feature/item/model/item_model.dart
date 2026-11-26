@@ -12,6 +12,8 @@ class ItemModel {
     required this.redeemLocal,
     required this.imgUrl,
     required this.status,
+    this.hasPhoto = false,
+    this.version = 0,
   });
 
   final int itemId;
@@ -21,7 +23,11 @@ class ItemModel {
   final String localFound;
   final DateTime timeFound;
   final String redeemLocal;
+
   final String? imgUrl;
+
+  final bool hasPhoto;
+  final int version;
   final ItemStatus status;
 
   factory ItemModel.fromJson(Map<String, dynamic> json) {
@@ -29,12 +35,20 @@ class ItemModel {
       itemId: (json['itemId'] as num).toInt(),
       name: json['name'] as String,
       description: json['description'] as String,
-      category: ItemCategory.fromApi(json['category'] as String),
+      category: ItemCategory.fromApi(
+        json['category'] as String,
+      ),
       localFound: json['localFound'] as String,
-      timeFound: DateTime.parse(json['timeFound'] as String),
+      timeFound: DateTime.parse(
+        json['timeFound'] as String,
+      ),
       redeemLocal: json['redeemLocal'] as String,
       imgUrl: json['imgUrl'] as String?,
-      status: ItemStatus.fromApi(json['status'] as String),
+      hasPhoto: json['hasPhoto'] == true,
+      version: (json['version'] as num?)?.toInt() ?? 0,
+      status: ItemStatus.fromApi(
+        json['status'] as String,
+      ),
     );
   }
 }

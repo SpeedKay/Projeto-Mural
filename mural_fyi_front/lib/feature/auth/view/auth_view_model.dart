@@ -1,52 +1,69 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/api/api_client.dart';
+import '../../../core/api/auth_session.dart';
 import '../repository/auth_repository.dart';
 
-
 class AuthViewModel extends ChangeNotifier {
-  AuthViewModel(this._repository, this._apiClient);
+  AuthViewModel(this._repository, this._session) {
+    _session.addListener(notifyListeners);
+  }
 
   final AuthRepository _repository;
-  final ApiClient _apiClient;
+  final AuthSession _session;
 
-  bool isLoading = false;
-  String? errorMessage;
-  DateTime? _expiresAt;
-  String? _accessToken;
+  bool _isLoading = false;
+  String? _errorMessage;
 
-  bool get isAuthenticated =>
-      _accessToken != null &&
-          _expiresAt != null &&
-          DateTime.now().isBefore(_expiresAt!);
+  bool get isLoading => _isLoading;
 
-  Future<bool> login(String username, String password) async {
-    isLoading = true;
-    errorMessage = null;
+  String? get errorMessage => _errorMessage;
+
+  bool get isAuthenticated => _session.isAuthenticated;
+
+  Future<bool> login(
+      String username,
+      String password,
+      ) async {
+    if (isLoading) return false;
+
+    _isLoading = true;
+    _errorMessage = null;
+
     notifyListeners();
 
     try {
-      final response = await _repository.login(username, password);
-      _accessToken = response.accessToken;
-      _expiresAt = DateTime.now().add(
-        Duration(minutes: response.expiresInMinutes),
+      final response = await _repository.login(
+        username,
+        password,
       );
-      _apiClient.setToken(response.accessToken);
-      return true;
+
+      _session.start(
+        response.accessToken,
+        Duration(
+          minutes: response.expiresInMinutes,
+        ),
+      );
+
+      return isAuthenticated;
     } catch (error) {
-      errorMessage = error.toString();
+      _errorMessage = error.toString();
+
       return false;
     } finally {
-      isLoading = false;
+      _isLoading = false;
+
       notifyListeners();
     }
   }
 
   void logout() {
-    _accessToken = null;
-    _expiresAt = null;
-    errorMessage = null;
-    _apiClient.clearToken();
-    notifyListeners();
+    _errorMessage = null;
+    _session.clear();
+  }
+
+  @override
+  void dispose() {
+    _session.removeListener(notifyListeners);
+    super.dispose();
   }
 }

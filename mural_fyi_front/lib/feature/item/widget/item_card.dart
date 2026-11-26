@@ -1,74 +1,193 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+
 import '../model/item_model.dart';
 import '../model/item_status.dart';
 
+import 'remote_item_photo.dart';
+import 'item_details_dialog.dart';
+import 'item_action_menu.dart';
+
 class ItemCard extends StatelessWidget {
-  const ItemCard({required this.item, super.key});
+  const ItemCard({
+    super.key,
+    required this.item,
+    required this.loadPhoto,
+    this.onEdit,
+    this.onDelete,
+    this.onRedeem,
+    this.isBusy = false,
+    this.listMode = false,
+  });
 
   final ItemModel item;
 
-  String get _formattedDate =>
-      '${item.timeFound.day.toString().padLeft(2, '0')}/'
-          '${item.timeFound.month.toString().padLeft(2, '0')}/'
-          '${item.timeFound.year}';
+  final Future<Uint8List> Function(int) loadPhoto;
 
-  Widget _itemPhoto({double height = 145}) {
-    if (item.imgUrl == null || item.imgUrl!.trim().isEmpty) {
-      return Container(
-        height: height,
-        color: Colors.grey.shade200,
-        child: const Center(child: Icon(Icons.image_not_supported_outlined, size: 50)),
-      );
-    }
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final VoidCallback? onRedeem;
 
-    return Image.network(
-      item.imgUrl!,
+  final bool isBusy;
+  final bool listMode;
+
+  bool get _canManage =>
+      onEdit != null ||
+          onDelete != null ||
+          onRedeem != null;
+
+  Widget _photo({
+    double height = 142,
+    double width = double.infinity,
+  }) {
+    return RemoteItemPhoto(
+      item: item,
+      loadPhoto: loadPhoto,
       height: height,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => Container(
-        height: height,
-        color: Colors.grey.shade200,
-        child: const Center(child: Icon(Icons.broken_image_outlined, size: 50)),
-      ),
+      width: width,
+    );
+  }
+
+  Widget _menu() {
+    return ItemActionMenu(
+      item: item,
+      onEdit: onEdit,
+      onDelete: onDelete,
+      onRedeem: onRedeem,
+      isBusy: isBusy,
     );
   }
 
   void _showDetails(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(item.name),
-        content: SizedBox(
-          width: 460,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: _itemPhoto(height: 220),
-                ),
-                const SizedBox(height: 16),
-                Text(item.description),
-                const SizedBox(height: 12),
-                Text('Categoria: ${item.category.label}'),
-                Text('Encontrado em: ${item.localFound}'),
-                Text('Data: $_formattedDate'),
-                Text('Retirada: ${item.redeemLocal}'),
-                Text('Situação: ${item.status.label}'),
-              ],
-            ),
+
+      builder: (_) => ItemDetailsDialog(
+        item: item,
+        loadPhoto: loadPhoto,
+      ),
+    );
+  }
+
+  Widget _info(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    final recovered = item.status == ItemStatus.redeemed;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+
+      children: [
+        Text(
+          item.category.label.toUpperCase(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: colors.primary,
+            letterSpacing: .7,
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Fechar'),
+
+        const SizedBox(height: 4),
+
+        Text(
+          item.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
           ),
-        ],
-      ),
+        ),
+
+        const SizedBox(height: 4),
+
+        Text(
+          item.description,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+
+        const SizedBox(height: 8),
+
+        Row(
+          children: [
+            Icon(
+              Icons.place_outlined,
+              size: 16,
+              color: colors.primary,
+            ),
+
+            const SizedBox(width: 4),
+
+            Expanded(
+              child: Text(
+                item.localFound,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 5,
+          ),
+
+          decoration: BoxDecoration(
+            color: recovered
+                ? const Color(0xffdcefe5)
+                : const Color(0xffffedcf),
+
+            borderRadius: BorderRadius.circular(8),
+          ),
+
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+
+            children: [
+              Icon(
+                recovered
+                    ? Icons.check_circle_outline
+                    : Icons.schedule,
+
+                size: 15,
+
+                color: recovered
+                    ? const Color(0xff175e3c)
+                    : const Color(0xff88530a),
+              ),
+
+              const SizedBox(width: 4),
+
+              Flexible(
+                child: Text(
+                  item.status.label,
+                  maxLines: 2,
+
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+
+                    color: recovered
+                        ? const Color(0xff175e3c)
+                        : const Color(0xff88530a),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -76,43 +195,79 @@ class ItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+
       child: InkWell(
         onTap: () => _showDetails(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+
+        child: listMode
+
+            ? LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 440;
+
+            return Padding(
+              padding: const EdgeInsets.all(10),
+
+              child: Row(
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
+
+                children: [
+                  ClipRRect(
+                    borderRadius:
+                    BorderRadius.circular(12),
+
+                    child: _photo(
+                      width: compact ? 76 : 148,
+                      height: compact ? 96 : 145,
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: _info(context),
+                  ),
+
+                  if (_canManage) _menu(),
+                ],
+              ),
+            );
+          },
+        )
+
+            : Column(
+          crossAxisAlignment:
+          CrossAxisAlignment.stretch,
+
           children: [
-            _itemPhoto(),
+            Stack(
+              children: [
+                _photo(),
+
+                if (_canManage)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+
+                    child: Material(
+                      color: Theme.of(context)
+                          .colorScheme.surface,
+
+                      shape: const CircleBorder(),
+
+                      child: _menu(),
+                    ),
+                  ),
+              ],
+            ),
+
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 6),
-                    Text(item.description,
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
-                    const Spacer(),
-                    Text(item.localFound,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall),
-                    const SizedBox(height: 6),
-                    Chip(
-                      visualDensity: VisualDensity.compact,
-                      label: Text(item.status.label),
-                      avatar: Icon(
-                        item.status == ItemStatus.unclaimed
-                            ? Icons.access_time_outlined
-                            : Icons.check_circle_outline,
-                        size: 18,
-                      ),
-                    ),
-                  ],
-                ),
+
+                child: _info(context),
               ),
             ),
           ],

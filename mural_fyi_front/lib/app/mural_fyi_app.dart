@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../core/api/api_client.dart';
 import '../core/api/auth_session.dart';
+import '../core/theme/app_theme.dart';
+
 import '../feature/auth/repository/auth_repository.dart';
 import '../feature/auth/view/auth_view_model.dart';
+
 import '../feature/home/page/home_page.dart';
+
 import '../feature/item/repository/item_repository.dart';
 import '../feature/item/viewmodel/item_view_model.dart';
 
@@ -27,7 +31,9 @@ class _MuralAppState extends State<MuralApp> {
 
     _session = AuthSession();
 
-    _apiClient = ApiClient(session: _session);
+    _apiClient = ApiClient(
+      session: _session,
+    );
 
     _authViewModel = AuthViewModel(
       HttpAuthRepository(_apiClient),
@@ -54,13 +60,9 @@ class _MuralAppState extends State<MuralApp> {
     return MaterialApp(
       title: 'Mural FYI — Achados e Perdidos',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF176B60),
-        ),
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF7F8FA),
-      ),
+
+      theme: AppTheme.light,
+
       home: HomePage(
         authViewModel: _authViewModel,
         itemViewModel: _itemViewModel,

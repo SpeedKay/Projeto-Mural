@@ -11,19 +11,23 @@ class AuthViewModel extends ChangeNotifier {
   final AuthRepository _repository;
   final AuthSession _session;
 
-  bool isLoading = false;
-  String? errorMessage;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  bool get isLoading => _isLoading;
+
+  String? get errorMessage => _errorMessage;
 
   bool get isAuthenticated => _session.isAuthenticated;
 
   Future<bool> login(
-    String username,
-    String password,
-  ) async {
+      String username,
+      String password,
+      ) async {
     if (isLoading) return false;
 
-    isLoading = true;
-    errorMessage = null;
+    _isLoading = true;
+    _errorMessage = null;
 
     notifyListeners();
 
@@ -35,21 +39,25 @@ class AuthViewModel extends ChangeNotifier {
 
       _session.start(
         response.accessToken,
-        Duration(minutes: response.expiresInMinutes),
+        Duration(
+          minutes: response.expiresInMinutes,
+        ),
       );
 
       return isAuthenticated;
     } catch (error) {
-      errorMessage = error.toString();
+      _errorMessage = error.toString();
+
       return false;
     } finally {
-      isLoading = false;
+      _isLoading = false;
+
       notifyListeners();
     }
   }
 
   void logout() {
-    errorMessage = null;
+    _errorMessage = null;
     _session.clear();
   }
 
